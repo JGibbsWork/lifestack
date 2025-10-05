@@ -1,3 +1,5 @@
+# Create a fixed service file
+cat > ~/lifestack.service.tmp << 'EOF'
 [Unit]
 Description=Lifestack - Unified Life Services API
 After=network.target mongodb.service
@@ -5,10 +7,10 @@ Wants=mongodb.service
 
 [Service]
 Type=simple
-User=pi
-Group=pi
-WorkingDirectory=/home/pi/lifestack
-EnvironmentFile=/home/pi/lifestack/.env
+User=$USER
+Group=$USER
+WorkingDirectory=$HOME/apps/lifestack
+EnvironmentFile=$HOME/apps/lifestack/.env
 ExecStart=/usr/bin/node index.js
 
 # Restart configuration
@@ -27,7 +29,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=/home/pi/lifestack
+ReadWritePaths=$HOME/apps/lifestack
 
 # Resource limits
 LimitNOFILE=65536
@@ -35,3 +37,16 @@ MemoryLimit=512M
 
 [Install]
 WantedBy=multi-user.target
+EOF
+
+# Replace $USER and $HOME with actual values
+sed -i "s|\$USER|$USER|g" ~/lifestack.service.tmp
+sed -i "s|\$HOME|$HOME|g" ~/lifestack.service.tmp
+
+# Copy to systemd
+sudo cp ~/lifestack.service.tmp /etc/systemd/system/lifestack.service
+
+# Reload and restart
+sudo systemctl daemon-reload
+sudo systemctl restart lifestack
+sudo systemctl status lifestack
