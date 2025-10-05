@@ -187,8 +187,13 @@ const startServer = async () => {
     console.log('🔌 Connecting to MongoDB...');
     await connectDB();
 
-    // Initialize Calendar Service
-    await initializeCalendarService();
+    // Initialize Calendar Service (optional)
+    try {
+      await initializeCalendarService();
+    } catch (error) {
+      console.log('⚠️  Calendar service disabled:', error.message);
+      console.log('   To enable: Set up Google OAuth credentials');
+    }
 
     // Start Express server
     const server = app.listen(PORT, '0.0.0.0', () => {

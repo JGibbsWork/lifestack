@@ -8,6 +8,9 @@ node_modules/
 credentials.json
 token.json
 
+# Strava OAuth tokens
+.strava-tokens.json
+
 # Logs
 logs/
 *.log

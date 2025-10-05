@@ -307,11 +307,13 @@ function handleError(res, error, message) {
   // Add specific error flags
   if (error.rateLimitExceeded) {
     response.rateLimitExceeded = true;
+    response.retryAfter = '15 minutes';
+    response.message = 'Strava API rate limit exceeded. Limits: 200 requests per 15 minutes, 2000 per day';
   }
 
   if (error.needsRefresh) {
     response.needsRefresh = true;
-    response.message = 'Strava access token needs to be refreshed';
+    response.message = 'Strava access token needs to be refreshed. Run: node services/strava/oauth-setup.js';
   }
 
   res.status(status).json(response);

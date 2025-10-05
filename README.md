@@ -95,7 +95,8 @@ GOOGLE_TOKEN_PATH=./token.json
 
 # Optional (enable services you want)
 TODOIST_TOKEN=your_todoist_token
-STRAVA_ACCESS_TOKEN=your_strava_token
+STRAVA_CLIENT_ID=your_strava_client_id
+STRAVA_CLIENT_SECRET=your_strava_client_secret
 PAVLOK_TOKEN=your_pavlok_token
 NOTION_TOKEN=your_notion_token
 ```
@@ -152,9 +153,16 @@ npm test
 | Variable | Description | Where to Get |
 |----------|-------------|--------------|
 | `TODOIST_TOKEN` | Todoist API token | [Todoist Integrations](https://todoist.com/prefs/integrations) |
-| `STRAVA_ACCESS_TOKEN` | Strava access token | [Strava API Settings](https://www.strava.com/settings/api) |
+| `STRAVA_CLIENT_ID` | Strava OAuth client ID | [Strava API Settings](https://www.strava.com/settings/api) - Create an app |
+| `STRAVA_CLIENT_SECRET` | Strava OAuth client secret | Same as above |
 | `PAVLOK_TOKEN` | Pavlok API token | [Pavlok Account](https://pavlok.com/) |
 | `NOTION_TOKEN` | Notion integration token | [Notion Integrations](https://www.notion.so/my-integrations) |
+
+**Note:** After setting up Strava credentials, run the one-time OAuth setup:
+```bash
+node services/strava/oauth-setup.js
+```
+This will create `.strava-tokens.json` with auto-refreshing access tokens (tokens refresh automatically every ~6 hours).
 
 ## API Documentation
 

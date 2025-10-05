@@ -1,27 +1,50 @@
 /**
  * Strava API Client
- * Wrapper for Strava API v3 using shared API client
+ * Wrapper for Strava API v3 with OAuth 2.0 token refresh
  */
 
+const axios = require('axios');
 const { createApiClient } = require('../../shared/utils/apiClient');
-const stravaConfig = require('../../config/services').strava;
+const { loadTokens, saveTokens } = require('./tokenStore');
 
 // Strava API configuration
 const STRAVA_BASE_URL = 'https://www.strava.com/api/v3';
+const STRAVA_TOKEN_URL = 'https://www.strava.com/oauth/token';
+const TOKEN_REFRESH_BUFFER = 300; // Refresh if expires in 5 minutes
 
 /**
  * Strava API Client Class
  */
 class StravaClient {
   constructor(accessToken = null) {
-    // Use provided token or get from config
-    this.accessToken = accessToken || stravaConfig?.accessToken;
-
-    if (!this.accessToken) {
-      throw new Error('Strava access token is required. Please set STRAVA_ACCESS_TOKEN in environment variables.');
+    // If explicit token provided, use it (for testing/override)
+    if (accessToken) {
+      this.accessToken = accessToken;
+      this.manualToken = true;
+      this._initializeClient();
+      return;
     }
 
-    // Create configured API client
+    // Load tokens from file
+    const tokens = loadTokens();
+    if (!tokens) {
+      throw new Error('Strava tokens not found. Run: node services/strava/oauth-setup.js');
+    }
+
+    this.accessToken = tokens.access_token;
+    this.refreshToken = tokens.refresh_token;
+    this.expiresAt = tokens.expires_at;
+    this.manualToken = false;
+
+    // Initialize API client
+    this._initializeClient();
+  }
+
+  /**
+   * Initialize the Axios API client with current access token
+   * @private
+   */
+  _initializeClient() {
     this.client = createApiClient({
       baseURL: STRAVA_BASE_URL,
       headers: {
@@ -32,10 +55,69 @@ class StravaClient {
   }
 
   /**
+   * Check if token needs refresh and refresh if necessary
+   * @private
+   */
+  async _ensureValidToken() {
+    // Skip if using manual token
+    if (this.manualToken) {
+      return;
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+    const timeUntilExpiry = this.expiresAt - now;
+
+    // Refresh if expires in less than 5 minutes
+    if (timeUntilExpiry < TOKEN_REFRESH_BUFFER) {
+      console.log('🔄 Strava token expiring soon, refreshing...');
+      await this._refreshToken();
+    }
+  }
+
+  /**
+   * Refresh the access token using refresh token
+   * @private
+   */
+  async _refreshToken() {
+    try {
+      const response = await axios.post(STRAVA_TOKEN_URL, {
+        client_id: process.env.STRAVA_CLIENT_ID,
+        client_secret: process.env.STRAVA_CLIENT_SECRET,
+        refresh_token: this.refreshToken,
+        grant_type: 'refresh_token'
+      });
+
+      // Update tokens (both access and refresh tokens change!)
+      const tokenData = {
+        access_token: response.data.access_token,
+        refresh_token: response.data.refresh_token,
+        expires_at: response.data.expires_at
+      };
+
+      // Save to file
+      saveTokens(tokenData);
+
+      // Update instance variables
+      this.accessToken = tokenData.access_token;
+      this.refreshToken = tokenData.refresh_token;
+      this.expiresAt = tokenData.expires_at;
+
+      // Re-initialize client with new token
+      this._initializeClient();
+
+      console.log('✅ Strava token refreshed successfully');
+    } catch (error) {
+      console.error('❌ Failed to refresh Strava token:', error.response?.data || error.message);
+      throw new Error('Token refresh failed. You may need to re-authorize: node services/strava/oauth-setup.js');
+    }
+  }
+
+  /**
    * Get current authenticated athlete profile
    * @returns {Promise<Object>} Athlete data
    */
   async getAthlete() {
+    await this._ensureValidToken();
     try {
       const response = await this.client.get('/athlete');
       return response.data;
@@ -54,6 +136,7 @@ class StravaClient {
    * @returns {Promise<Array>} Array of activities
    */
   async getActivities(params = {}) {
+    await this._ensureValidToken();
     try {
       const queryParams = {
         page: params.page || 1,
@@ -79,6 +162,7 @@ class StravaClient {
    * @returns {Promise<Object>} Activity data
    */
   async getActivity(activityId, includeAllEfforts = false) {
+    await this._ensureValidToken();
     try {
       const response = await this.client.get(`/activities/${activityId}`, {
         params: {
@@ -98,6 +182,7 @@ class StravaClient {
    * @returns {Promise<Object>} Athlete stats
    */
   async getAthleteStats(athleteId = 'current') {
+    await this._ensureValidToken();
     try {
       // If 'current', fetch athlete first to get ID
       let id = athleteId;
