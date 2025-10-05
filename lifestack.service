@@ -1,0 +1,37 @@
+[Unit]
+Description=Lifestack - Unified Life Services API
+After=network.target mongodb.service
+Wants=mongodb.service
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/lifestack
+EnvironmentFile=/home/pi/lifestack/.env
+ExecStart=/usr/bin/node index.js
+
+# Restart configuration
+Restart=always
+RestartSec=10
+StartLimitInterval=200
+StartLimitBurst=5
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=lifestack
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/pi/lifestack
+
+# Resource limits
+LimitNOFILE=65536
+MemoryLimit=512M
+
+[Install]
+WantedBy=multi-user.target
